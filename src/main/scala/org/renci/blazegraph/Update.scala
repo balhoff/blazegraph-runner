@@ -19,8 +19,8 @@ object Update extends Command(description = "SPARQL update") with Common {
     blazegraph.begin()
     val update = blazegraph.prepareUpdate(QueryLanguage.SPARQL, Source.fromFile(updateFile, "utf-8").mkString)
     update.execute()
-    val mutations = mutationCounter.mutationCount
     blazegraph.commit()
+    val mutations = mutationCounter.mutationCount
     blazegraph.removeChangeLog(mutationCounter)
     logger.info(s"$mutations changes")
   }
