@@ -72,7 +72,7 @@ object Load extends Command(description = "Load triples") with Common with Graph
       val reasoned = reasonedTriples(owlOntology, assertedTriples)
       val numberReasoned = reasoned.size
       logger.info(s"Reasoned has $numberReasoned statements")
-      loadGraphToBlazegraph(blazegraph, graphFromFile(ontology.get, factory), findOntologyURI(ontology.get).get)
+      directFileLoadBlazegraph(blazegraph, ontology.get, ontGraphOpt)
       loadTriplesToBlazegraph(blazegraph, reasoned, inferredGraphName)
     }
   }
@@ -134,6 +134,18 @@ object Load extends Command(description = "Load triples") with Common with Graph
     blazegraph.addChangeLog(mutationCounter)
     blazegraph.begin()
     blazegraph.add(graph, blazegraph.getValueFactory.createURI(graphUri))
+    blazegraph.commit()
+    val mutations = mutationCounter.mutationCount
+    blazegraph.removeChangeLog(mutationCounter)
+    logger.info(s"$mutations changes")
+  }
+
+  def directFileLoadBlazegraph(blazegraph: Blazegraph, file: File, graphUri: String): Unit = {
+    logger.info("Loading statements into database...")
+    val mutationCounter = new MutationCounter()
+    blazegraph.addChangeLog(mutationCounter)
+    blazegraph.begin()
+    blazegraph.add(file, base, inputFormat, blazegraph.getValueFactory.createURI(graphUri))
     blazegraph.commit()
     val mutations = mutationCounter.mutationCount
     blazegraph.removeChangeLog(mutationCounter)
