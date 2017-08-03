@@ -18,7 +18,7 @@ scalacOptions in Test ++= Seq("-Yrangepos")
 
 mainClass in Compile := Some("org.renci.blazegraph.Main")
 
-javaOptions += "-Xmx10G"
+javaOptions += "-Xmx20G"
 
 fork in Test := true
 
@@ -29,6 +29,11 @@ libraryDependencies ++= {
     "org.backuity.clist"          %% "clist-macros"           % "3.2.2" % "provided",
     "com.typesafe.scala-logging"  %% "scala-logging"          % "3.7.1",
     "ch.qos.logback"              %  "logback-classic"        % "1.2.3",
-    "org.codehaus.groovy"         %  "groovy-all"             % "2.4.6"
+    "org.codehaus.groovy"         %  "groovy-all"             % "2.4.6",
+    "org.apache.jena"             %  "jena-arq"               % "3.2.0",
+    "org.apache.jena"             %  "apache-jena-libs"       % "3.2.0" pomOnly(),
+    "org.apache.jena"             %  "jena-core"              % "3.2.0",
+    "org.geneontology"            %  "arachne_2.12"           % "1.1.1",
+    "org.geneontology"            %% "owl-to-rules"           % "0.3.4"
   )
 }

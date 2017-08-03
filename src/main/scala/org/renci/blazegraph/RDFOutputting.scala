@@ -1,6 +1,6 @@
 
 package org.renci.blazegraph
-import org.openrdf.query.QueryLanguage
+
 import org.openrdf.rio.RDFWriter
 import org.openrdf.rio.ntriples.NTriplesWriter
 import org.openrdf.rio.rdfxml.RDFXMLWriter
