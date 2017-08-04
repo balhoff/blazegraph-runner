@@ -10,7 +10,7 @@ licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Cla
 
 homepage := Some(url("https://github.com/balhoff/blazegraph-runner"))
 
-scalaVersion  := "2.12.2"
+scalaVersion  := "2.12.3"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
@@ -30,10 +30,8 @@ libraryDependencies ++= {
     "com.typesafe.scala-logging"  %% "scala-logging"          % "3.7.1",
     "ch.qos.logback"              %  "logback-classic"        % "1.2.3",
     "org.codehaus.groovy"         %  "groovy-all"             % "2.4.6",
-    "org.apache.jena"             %  "jena-arq"               % "3.2.0",
     "org.apache.jena"             %  "apache-jena-libs"       % "3.2.0" pomOnly(),
-    "org.apache.jena"             %  "jena-core"              % "3.2.0",
-    "org.geneontology"            %  "arachne_2.12"           % "1.1.1",
+    "org.geneontology"            %% "arachne"                % "1.1.1",
     "org.geneontology"            %% "owl-to-rules"           % "0.3.4"
   )
 }

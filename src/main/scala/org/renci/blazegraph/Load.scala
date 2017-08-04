@@ -2,33 +2,36 @@ package org.renci.blazegraph
 
 import java.io.File
 import java.io.FileInputStream
+import java.util.Collection
 
 import scala.collection.JavaConverters._
+
+import org.apache.commons.io.FileUtils
+import org.apache.jena.system.JenaSystem
 import org.backuity.clist._
+import org.geneontology.jena.OWLtoRules
+import org.geneontology.rules.engine.BlankNode
+import org.geneontology.rules.engine.ConcreteNode
+import org.geneontology.rules.engine.RuleEngine
+import org.geneontology.rules.engine.Triple
+import org.geneontology.rules.util.Bridge
 import org.openrdf.model._
+import org.openrdf.model.impl.URIImpl
 import org.openrdf.rio.RDFFormat
 import org.openrdf.rio.Rio
 import org.openrdf.rio.helpers.RDFHandlerBase
-import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
-import org.apache.commons.io.FileUtils
-import org.apache.jena.system.JenaSystem
-import org.backuity.clist
-import org.geneontology.jena.OWLtoRules
-import org.geneontology.rules.engine.{AnyNode, BlankNode, ConcreteNode, Node, RuleEngine, Triple, Variable}
-import org.geneontology.rules.util.Bridge
-import org.openrdf.model.impl.LinkedHashModel
+import org.openrdf.rio.helpers.StatementCollector
 import org.semanticweb.owlapi.apibinding.OWLManager
-import org.semanticweb.owlapi.model.OWLOntology
 import org.semanticweb.owlapi.model.parameters.Imports
 
-object Load extends Command(description = "Load triples") with Common with GraphSpecific {
+import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
 
-  type Blazegraph = BigdataSailRepositoryConnection
+object Load extends Command(description = "Load triples") with Common with GraphSpecific {
 
   var base = opt[String](default = "")
   var useOntologyGraph = opt[Boolean](default = false, name = "use-ontology-graph")
   var ontology = opt[Option[File]]()
-  var data = clist.arg[File]()
+  var data = arg[File]()
 
   def inputFormat: RDFFormat = informat.getOrElse("turtle") match {
     case "turtle"   => RDFFormat.TURTLE
@@ -37,124 +40,50 @@ object Load extends Command(description = "Load triples") with Common with Graph
     case other      => throw new IllegalArgumentException(s"Invalid input RDF format: $other")
   }
 
-  def runUsingConnection(blazegraph: Blazegraph): Unit = {
-
+  def runUsingConnection(blazegraph: BigdataSailRepositoryConnection): Unit = {
     JenaSystem.init()
-
     val factory = blazegraph.getValueFactory
-
-    //Fix this gross thing. Must be better scala way?
-    val ontGraphOpt: String = if (useOntologyGraph && !data.isDirectory) {
-      findOntologyURI(data) match {
-        case some: Some[String] => some.get
-        case None => data.toURI.toURL.toString
+    val filesToLoad = if (data.isFile) List(data) else FileUtils.listFiles(data, null, true).asScala.filter(_.isFile)
+    ontology match {
+      case Some(ontFile) =>
+        val arachne = new RuleEngine(Bridge.rulesFromJena(OWLtoRules.translate(OWLManager.createOWLOntologyManager().loadOntologyFromOntologyDocument(ontFile), Imports.INCLUDED, true, true, false, true)), false)
+        filesToLoad.foreach { file =>
+          val collector = new StatementCollector()
+          val parser = Rio.createParser(inputFormat)
+          parser.setRDFHandler(collector)
+          val inputStream = new FileInputStream(file)
+          parser.parse(inputStream, base)
+          inputStream.close()
+          val loaded = loadStatementsToBlazegraph(blazegraph, collector.getStatements, determineGraph(file))
+          logger.info(s"$loaded loaded (asserted)")
+          val assertedTriples = collector.getStatements.asScala.map(createTriple)
+          val inferredTriples = arachne.processTriples(assertedTriples).facts -- assertedTriples
+          val inferredStatements = inferredTriples.map(createStatement(factory, _))
+          val loadedInferred = loadStatementsToBlazegraph(blazegraph, inferredStatements.asJava, determineGraph(file).map(reasonedURI))
+          logger.info(s"$loadedInferred loaded (inferred)")
+        }
+      case None => filesToLoad.foreach { file =>
+        val mutationCounter = new MutationCounter()
+        blazegraph.addChangeLog(mutationCounter)
+        blazegraph.begin()
+        blazegraph.add(data, base, inputFormat, determineGraph(file).get)
+        blazegraph.commit()
+        val mutations = mutationCounter.mutationCount
+        blazegraph.removeChangeLog(mutationCounter)
+        logger.info(s"$mutations changes")
       }
-    } else {
-      graphOpt match {
-        case some: Some[String] => some.get
-        case None => data.toURI.toURL.toString
-      }
-    }
-    logger.info(s"Graph URI is $ontGraphOpt")
-    val assertedTriples = makeTriples(graphFromFile(data, factory))
-    loadTriplesToBlazegraph(blazegraph, assertedTriples, ontGraphOpt)
-
-    if(ontology.isDefined) {
-      logger.info(s"Using ontology $ontology")
-      logger.info("performing reasoning...")
-      val inferredGraphName = reasonedUri(ontGraphOpt)
-      logger.info(s"Inferred graph URI is $inferredGraphName")
-      val manager = OWLManager.createOWLOntologyManager()
-      logger.info("Creating OWLManager")
-      val owlOntology = manager.loadOntologyFromOntologyDocument(ontology.get)
-      val ontologySize = owlOntology.getSignature.size()
-      logger.info(s"Ontology loaded, $ontologySize terms")
-      val reasoned = reasonedTriples(owlOntology, assertedTriples)
-      val numberReasoned = reasoned.size
-      logger.info(s"Reasoned has $numberReasoned statements")
-      loadGraphToBlazegraph(blazegraph, graphFromFile(ontology.get, factory), findOntologyURI(ontology.get).get)
-      loadTriplesToBlazegraph(blazegraph, reasoned, inferredGraphName)
     }
   }
 
-  def graphFromFile(file: File, factory: ValueFactory): Graph = {
-
-    logger.info(s"Parsing $file...")
-    var graph: Graph = new LinkedHashModel()
-
-    object LoadHandler extends RDFHandlerBase {
-      var graph = new LinkedHashModel()
-      override def handleStatement(st: Statement): Unit = {
-        graph.add(st)
-      }
-    }
-
-    def parseFile(file: File): Graph = {
-      val inputStream = new FileInputStream(file)
-      val parser = Rio.createParser(inputFormat)
-      parser.setRDFHandler(LoadHandler)
-
-      try {
-        parser.parse(inputStream, base)
-      } finally {
-        inputStream.close()
-      }
-      LoadHandler.graph
-    }
-
-    if(file.isDirectory) {
-      val dataFiles = FileUtils.listFiles(file, Array("ttl"), true).asScala.filter(_.isFile).toArray
-      dataFiles.map(parseFile).foldLeft(graph) { (folded, el) =>
-        folded.addAll(el)
-        folded
-      }
-    } else {
-      parseFile(file)
-    }
-  }
-
-  def loadTriplesToBlazegraph(blazegraph: Blazegraph, triples: Iterable[Triple], graphUri: String): Unit = {
-
-    logger.info("Loading statements into database...")
-    val mutationCounter = new MutationCounter()
-    val statements = makeStatements(blazegraph, triples)
-    blazegraph.addChangeLog(mutationCounter)
-    blazegraph.begin()
-    blazegraph.add(statements, blazegraph.getValueFactory.createURI(graphUri))
-    blazegraph.commit()
-    val mutations = mutationCounter.mutationCount
-    blazegraph.removeChangeLog(mutationCounter)
-    logger.info(s"$mutations changes")
-  }
-
-  def loadGraphToBlazegraph(blazegraph: Blazegraph, graph: Graph, graphUri: String): Unit = {
-
-    logger.info("Loading statements into database...")
+  private def loadStatementsToBlazegraph(blazegraph: BigdataSailRepositoryConnection, statements: Collection[Statement], graph: Option[URI]): Int = {
     val mutationCounter = new MutationCounter()
     blazegraph.addChangeLog(mutationCounter)
     blazegraph.begin()
-    blazegraph.add(graph, blazegraph.getValueFactory.createURI(graphUri))
+    blazegraph.add(statements, graph.get)
     blazegraph.commit()
     val mutations = mutationCounter.mutationCount
     blazegraph.removeChangeLog(mutationCounter)
-    logger.info(s"$mutations changes")
-  }
-
-  def makeStatements(blazegraph: Blazegraph, triples: Iterable[Triple]): Graph = {
-    var g = new LinkedHashModel()
-    val f = blazegraph.getValueFactory
-    for(triple <- triples) {
-      g.add(createStatement(f, triple))
-    }
-    g
-  }
-
-  def makeTriples(statements: Graph): Iterable[Triple] = {
-    var triples = Set[Triple]()
-    for(statement <- statements.asScala) {
-      triples = triples + createTriple(statement)
-    }
-    triples
+    mutations
   }
 
   def createStatement(factory: ValueFactory, triple: Triple): Statement = {
@@ -170,44 +99,36 @@ object Load extends Command(description = "Load triples") with Common with Graph
 
   def uriFromArachne(factory: ValueFactory, uri: org.geneontology.rules.engine.URI): URI = factory.createURI(uri.uri)
 
-  def uriToArachne(uri: URI): org.geneontology.rules.engine.URI = org.geneontology.rules.engine.URI(uri.toString)
+  def uriToArachne(uri: URI): org.geneontology.rules.engine.URI = org.geneontology.rules.engine.URI(uri.stringValue)
 
   def resourceFromArachne(factory: ValueFactory, resource: org.geneontology.rules.engine.Resource): Resource = resource match {
-    case blank: BlankNode => factory.createBNode(blank.id)
-    case uri: org.geneontology.rules.engine.URI => uriFromArachne(factory, uri)
+    case uri @ org.geneontology.rules.engine.URI(_) => uriFromArachne(factory, uri)
+    case BlankNode(id)                              => factory.createBNode(id)
   }
 
   def resourceToArachne(resource: Resource): org.geneontology.rules.engine.Resource = resource match {
+    case uri: URI     => uriToArachne(uri)
     case bnode: BNode => BlankNode(bnode.getID)
-    case uri: URI => uriToArachne(uri)
   }
 
-  def valueFromArachne(factory: ValueFactory, node: Node): Value = node match {
-    case blank: BlankNode => factory.createBNode(blank.toString())
-    case AnyNode => () => "AnyNode"
-    case uri: org.geneontology.rules.engine.URI => factory.createURI(uri.uri)
-    case literal: org.geneontology.rules.engine.Literal => factory.createLiteral(literal.lexicalForm, literal.datatype.uri)
-    case variable: Variable => factory.createURI(variable.name)
+  def valueFromArachne(factory: ValueFactory, node: ConcreteNode): Value = node match {
+    case org.geneontology.rules.engine.URI(value) => factory.createURI(value)
+    case BlankNode(id) => factory.createBNode(id)
+    case org.geneontology.rules.engine.Literal(value, _, Some(lang)) => factory.createLiteral(value, lang)
+    case org.geneontology.rules.engine.Literal(value, uri @ org.geneontology.rules.engine.URI(_), _) => factory.createLiteral(value, uriFromArachne(factory, uri))
   }
 
   def valueToArachne(value: Value): ConcreteNode = value match {
-    case bnode: BNode => BlankNode(bnode.getID)
-    case uri: URI => uriToArachne(uri)
-    case literal: Literal => org.geneontology.rules.engine.Literal(literal.stringValue(), uriToArachne(literal.getDatatype), None)
+    case bnode: BNode     => BlankNode(bnode.getID)
+    case uri: URI         => uriToArachne(uri)
+    case literal: Literal => org.geneontology.rules.engine.Literal(literal.stringValue(), uriToArachne(literal.getDatatype), Option(literal.getLanguage))
   }
 
-  def reasonedTriples(ontology: OWLOntology, triples: Iterable[Triple]): Iterable[Triple] = {
-    logger.info("Creating rules from ontology")
-    val ontologyRules = Bridge.rulesFromJena(OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, false, true))
-    val rulesSize = ontologyRules.size
-    logger.info(s"Made $rulesSize rules")
-    val engine = new RuleEngine(ontologyRules, false)
-    logger.info("Processing triples")
-    engine.processTriples(triples).facts -- triples
-  }
+  def reasonedURI(uri: URI): URI = new URIImpl(uri.stringValue + "_Inferred")
 
-  def reasonedUri(uri: String): String = {
-    uri + "_Inferred"
+  def determineGraph(file: File): Option[URI] = {
+    val ontGraphOpt = if (useOntologyGraph) findOntologyURI(file) else None
+    ontGraphOpt.orElse(graphOpt).map(new URIImpl(_))
   }
 
   /**

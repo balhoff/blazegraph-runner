@@ -1,15 +1,13 @@
 package org.renci.blazegraph
 
-
-import com.bigdata.rdf.changesets.IChangeRecord
 import com.bigdata.rdf.changesets.IChangeLog
-import com.typesafe.scalalogging.LazyLogging
+import com.bigdata.rdf.changesets.IChangeRecord
 
-class MutationCounter extends IChangeLog with LazyLogging{
+class MutationCounter extends IChangeLog {
 
   private var records = 0
 
-  def mutationCount = records
+  def mutationCount: Int = records
 
   def changeEvent(record: IChangeRecord) = records += 1
 
@@ -17,13 +15,9 @@ class MutationCounter extends IChangeLog with LazyLogging{
 
   def transactionAborted(): Unit = ()
 
-  def transactionBegin(): Unit = {
-    logger.info("Here we bigin a transaction")
-  }
+  def transactionBegin(): Unit = ()
 
-  def transactionCommited(commitTime: Long): Unit = {
-    logger.info("Here we commit a transaction")
-  }
+  def transactionCommited(commitTime: Long): Unit = ()
 
   def transactionPrepare(): Unit = ()
 

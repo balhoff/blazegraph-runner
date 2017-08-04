@@ -1,11 +1,12 @@
 
 package org.renci.blazegraph
 
+import java.io.OutputStream
+
 import org.openrdf.rio.RDFWriter
 import org.openrdf.rio.ntriples.NTriplesWriter
 import org.openrdf.rio.rdfxml.RDFXMLWriter
 import org.openrdf.rio.turtle.TurtleWriter
-import java.io.OutputStream
 
 trait RDFOutputting extends Common {
 
