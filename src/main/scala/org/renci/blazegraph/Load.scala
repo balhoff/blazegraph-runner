@@ -26,10 +26,11 @@ import org.semanticweb.owlapi.model.parameters.Imports
 
 import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
 
-object Load extends Command(description = "Load triples") with Common {
+object Load extends Command(description = "Load triples") with Common with GraphSpecific {
 
   var base = opt[String](default = "")
-  var ontology = opt[Option[File]]()
+  var reason = opt[Option[File]](description = "Ontology that will be formed into rules for reasoning on input files")
+  var isDefault = opt[Boolean](default = false, name = "default")
   var dataFiles = args[Seq[File]]()
 
   def inputFormat: RDFFormat = informat.getOrElse("turtle") match {
@@ -42,11 +43,12 @@ object Load extends Command(description = "Load triples") with Common {
   def runUsingConnection(blazegraph: BigdataSailRepositoryConnection): Unit = {
     JenaSystem.init()
     val factory = blazegraph.getValueFactory
-    val filesToLoad = dataFiles.flatMap( data => if(data.isFile) List(data) else FileUtils.listFiles(data, Array("ttl"), true).asScala).filter(_.isFile)
-    ontology match {
+    val filesToLoad = dataFiles.flatMap( data => if(data.isFile) List(data) else FileUtils.listFiles(data, inputFormat.getFileExtensions.asScala.toArray, true).asScala).filter(_.isFile)
+    reason match {
       case Some(ontFile) =>
         val arachne = new RuleEngine(Bridge.rulesFromJena(OWLtoRules.translate(OWLManager.createOWLOntologyManager().loadOntologyFromOntologyDocument(ontFile), Imports.INCLUDED, true, true, false, true)), false)
         filesToLoad.foreach { file =>
+          logger.info(s"Loading and reasoning $file")
           val collector = new StatementCollector()
           val parser = Rio.createParser(inputFormat)
           parser.setRDFHandler(collector)
@@ -62,11 +64,13 @@ object Load extends Command(description = "Load triples") with Common {
           val loadedInferred = loadStatementsToBlazegraph(blazegraph, inferredStatements.asJava, reasonedURI(graphName))
           logger.info(s"$loadedInferred loaded (inferred)")
         }
-        val ontologyLoaded = loadFileToBlazegraph(blazegraph, ontFile, determineGraph(ontFile))
+        val ontologyLoaded = loadFileToBlazegraph(blazegraph, ontFile, Option(determineGraph(ontFile)))
         logger.info(s"$ontologyLoaded loaded (ontology)")
 
       case None => filesToLoad.foreach { file =>
-        val mutations = loadFileToBlazegraph(blazegraph, file, determineGraph(file))
+        logger.info(s"Loading $file")
+        val graphUri: Option[URI] = if(this.isDefault) None else if(graphOpt.isDefined) graphOpt.map(new URIImpl(_)) else Option(determineGraph(file))
+        val mutations = loadFileToBlazegraph(blazegraph, file, graphUri)
         logger.info(s"$mutations changes")
       }
     }
@@ -83,11 +87,14 @@ object Load extends Command(description = "Load triples") with Common {
     mutations
   }
 
-  private def loadFileToBlazegraph(blazegraph: BigdataSailRepositoryConnection, file: File, graph: URI): Int = {
+  private def loadFileToBlazegraph(blazegraph: BigdataSailRepositoryConnection, file: File, graph: Option[URI]): Int = {
     val mutationCounter = new MutationCounter()
     blazegraph.addChangeLog(mutationCounter)
     blazegraph.begin()
-    blazegraph.add(file, base, inputFormat, determineGraph(file))
+    graph match {
+      case Some(g) => blazegraph.add(file, base, inputFormat, g)
+      case None => blazegraph.add(file, base, inputFormat)
+    }
     blazegraph.commit()
     blazegraph.removeChangeLog(mutationCounter)
     mutationCounter.mutationCount
