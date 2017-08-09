@@ -27,6 +27,8 @@ libraryDependencies ++= {
     "com.blazegraph"              %  "bigdata-core"           % "2.1.4" exclude("org.slf4j", "slf4j-log4j12"),
     "org.backuity.clist"          %% "clist-core"             % "3.2.2",
     "org.backuity.clist"          %% "clist-macros"           % "3.2.2" % "provided",
+    "com.typesafe.akka"           %% "akka-stream"            % "2.5.3",
+    "org.geneontology"            %% "arachne"                % "1.1.1",
     "com.typesafe.scala-logging"  %% "scala-logging"          % "3.7.1",
     "ch.qos.logback"              %  "logback-classic"        % "1.2.3",
     "org.codehaus.groovy"         %  "groovy-all"             % "2.4.6"
