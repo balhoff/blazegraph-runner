@@ -8,6 +8,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.blocking
 import scala.concurrent.duration.Duration
+import scala.util.Failure
 
 import org.apache.jena.system.JenaSystem
 import org.backuity.clist._
@@ -21,13 +22,11 @@ import org.semanticweb.owlapi.model.parameters.Imports
 
 import com.bigdata.rdf.sail.BigdataSailRepository
 import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
+import com.typesafe.scalalogging.LazyLogging
 
 import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl._
-import scala.util.Success
-import scala.util.Failure
-import com.typesafe.scalalogging.LazyLogging
 
 object Reason extends Command(description = "Materialize inferences") with Common with LazyLogging {
 
@@ -60,7 +59,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
       .mapAsyncUnordered(parallelism) {
         case (graphs, targetGraph) =>
           logger.debug(s"Loading from $graphs for target $targetGraph")
-          statementsForGraphs(graphs, repository).map(_ -> targetGraph)
+          statementsForGraphs(graphs, repository).map((_, targetGraph))
       }
       .mapAsyncUnordered(parallelism) {
         case (statements, targetGraph) => Future {
@@ -68,7 +67,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
           val triples = statements.map(ArachneBridge.createTriple)
           val wm = arachne.processTriples(triples)
           val inferred = wm.facts -- wm.asserted
-          val res = inferred.map(ArachneBridge.createStatement(blazegraph.getValueFactory, _)) -> targetGraph
+          val res = (inferred.map(ArachneBridge.createStatement(blazegraph.getValueFactory, _)), targetGraph)
           logger.debug(s"Done reasoning $targetGraph")
           res
         }
