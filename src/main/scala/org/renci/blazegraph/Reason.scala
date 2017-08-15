@@ -40,7 +40,7 @@ import akka.stream.scaladsl._
 object Reason extends Command(description = "Materialize inferences") with Common with LazyLogging {
 
   var targetGraph = opt[Option[String]](description = "Named graph to store inferred statements.")
-  var appendGraphName = opt[String](default = "#inferred", description = "If a target-graph is not provided, append this text to the end of source graph name to use as target graph for inferred statements.")
+  var appendGraphName = opt[String](default = "_inferred", description = "If a target-graph is not provided, append this text to the end of source graph name to use as target graph for inferred statements.")
   var mergeSources = opt[Boolean](default = false, description = "Merge all selected source graphs into one set of statements before reasoning. Inferred statements will be stored in provided `target-graph`, or else in the default graph. If `merge-sources` is false (default), source graphs will be reasoned separately and in parallel.")
   var ontology = opt[Option[String]](description = "Ontology to use as rule source. If the passed value is a valid filename, the ontology will be read from the file. Otherwise, if the value is an ontology IRI, it will be loaded from the database if such a graph exists, or else, from the web.")
   var rulesFile = opt[Option[File]](description = "Reasoning rules in Jena syntax.")
