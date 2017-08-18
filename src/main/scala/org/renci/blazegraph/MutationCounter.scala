@@ -1,13 +1,13 @@
 package org.renci.blazegraph
 
-import com.bigdata.rdf.changesets.IChangeRecord
 import com.bigdata.rdf.changesets.IChangeLog
+import com.bigdata.rdf.changesets.IChangeRecord
 
 class MutationCounter extends IChangeLog {
 
   private var records = 0
 
-  def mutationCount = records
+  def mutationCount: Int = records
 
   def changeEvent(record: IChangeRecord) = records += 1
 
