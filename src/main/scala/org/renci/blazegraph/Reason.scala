@@ -45,8 +45,8 @@ object Reason extends Command(description = "Materialize inferences") with Commo
   var ontology = opt[Option[String]](description = "Ontology to use as rule source. If the passed value is a valid filename, the ontology will be read from the file. Otherwise, if the value is an ontology IRI, it will be loaded from the database if such a graph exists, or else, from the web.")
   var rulesFile = opt[Option[File]](description = "Reasoning rules in Jena syntax.")
   var parallelism = opt[Int](default = Math.min(Runtime.getRuntime().availableProcessors / 2, 2), description = "Maximum graphs to simultaneously either read from database or run reasoning on.")
-  var sourceGraphsQuery = opt[String](description = "File name or query text of SPARQL select used to obtain graph names on which to perform reasoning. The query must return a column named `source_graph`.")
-  var sourceGraphs = arg[Seq[String]](description = "Space-separated graph IRIs on which to perform reasoning.")
+  var sourceGraphsQuery = opt[Option[String]](description = "File name or query text of SPARQL select used to obtain graph names on which to perform reasoning. The query must return a column named `source_graph`.")
+  var sourceGraphs = opt[Option[String]](description = "Space-separated graph IRIs on which to perform reasoning (must be passed as one shell argument).")
 
   private def computedTargetGraph(graph: String): Option[String] = targetGraph.orElse {
     if (mergeSources) None
@@ -73,16 +73,18 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     implicit val materializer = ActorMaterializer()
     val arachne = new RuleEngine(allRules, false)
 
-    val sourcesQueryString = if (new File(sourceGraphsQuery).exists) io.Source.fromFile(sourceGraphsQuery, "utf-8").mkString else sourceGraphsQuery
-    val query = blazegraph.prepareTupleQuery(QueryLanguage.SPARQL, sourcesQueryString)
-    val sourcesQueryResult = query.evaluate()
-    var sourceGraphNames = List.empty[String]
-    while (sourcesQueryResult.hasNext()) {
-      sourceGraphNames = sourcesQueryResult.next().getValue("source_graph").stringValue :: sourceGraphNames
+    var sourceGraphNames = sourceGraphs.map(_.split(" ", -1)).toList.flatten
+    sourceGraphsQuery.foreach { sgQuery =>
+      val sourcesQueryString = if (new File(sgQuery).exists) io.Source.fromFile(sgQuery, "utf-8").mkString else sgQuery
+      val query = blazegraph.prepareTupleQuery(QueryLanguage.SPARQL, sourcesQueryString)
+      val sourcesQueryResult = query.evaluate()
+      while (sourcesQueryResult.hasNext()) {
+        sourceGraphNames = sourcesQueryResult.next().getValue("source_graph").stringValue :: sourceGraphNames
+      }
+      sourcesQueryResult.close()
     }
-    sourceGraphNames = sourceGraphs.toList ::: sourceGraphNames
     logger.info(s"Reasoning on source graphs: \n${sourceGraphNames.mkString("\n")}")
-    sourcesQueryResult.close()
+
     val sourceGraphGroups = if (mergeSources) List(sourceGraphNames -> computedTargetGraph(sourceGraphNames.head))
     else sourceGraphNames.map(g => List(g) -> computedTargetGraph(g))
 
