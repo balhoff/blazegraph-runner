@@ -4,7 +4,7 @@ organization  := "org.renci"
 
 name          := "blazegraph-runner"
 
-version       := "1.2.2"
+version       := "1.2.3"
 
 licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Clause"))
 
