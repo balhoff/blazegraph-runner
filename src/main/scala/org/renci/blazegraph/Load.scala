@@ -45,7 +45,7 @@ object Load extends Command(description = "Load triples") with Common with Graph
     val mutationCounter = new MutationCounter()
     blazegraph.addChangeLog(mutationCounter)
     blazegraph.begin()
-    blazegraph.add(file, base, inputFormat, graphOpt.get)
+    blazegraph.add(file, base, inputFormat, graphOpt.getOrElse(null))
     blazegraph.commit()
     blazegraph.removeChangeLog(mutationCounter)
     mutationCounter.mutationCount
