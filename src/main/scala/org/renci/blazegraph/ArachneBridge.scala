@@ -48,7 +48,9 @@ object ArachneBridge {
   def valueToArachne(value: Value): ConcreteNode = value match {
     case bnode: BNode     => BlankNode(bnode.getID)
     case uri: URI         => uriToArachne(uri)
-    case literal: Literal => org.geneontology.rules.engine.Literal(literal.stringValue(), uriToArachne(literal.getDatatype), Option(literal.getLanguage))
+    case literal: Literal =>
+      val datatype = if (literal.getDatatype == null) org.geneontology.rules.engine.URI("http://www.w3.org/2001/XMLSchema#string") else uriToArachne(literal.getDatatype)
+      org.geneontology.rules.engine.Literal(literal.stringValue(), datatype, Option(literal.getLanguage))
   }
 
 }
