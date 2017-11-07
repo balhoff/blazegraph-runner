@@ -79,7 +79,13 @@ object Reason extends Command(description = "Materialize inferences") with Commo
       val query = blazegraph.prepareTupleQuery(QueryLanguage.SPARQL, sourcesQueryString)
       val sourcesQueryResult = query.evaluate()
       while (sourcesQueryResult.hasNext()) {
-        sourceGraphNames = sourcesQueryResult.next().getValue("source_graph").stringValue :: sourceGraphNames
+        val bindingSet = sourcesQueryResult.next()
+        if (bindingSet.hasBinding("source_graph")) sourceGraphNames = bindingSet.getValue("source_graph").stringValue :: sourceGraphNames
+        else {
+          logger.error(s"The SPARQL query for source graphs must return a binding for the variable 'source_graph'. Found instead: ${bindingSet.getBindingNames.asScala.mkString(",")}")
+          system.terminate()
+          System.exit(1)
+        }
       }
       sourcesQueryResult.close()
     }
