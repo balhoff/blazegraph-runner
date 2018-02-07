@@ -44,7 +44,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
   var mergeSources = opt[Boolean](default = false, description = "Merge all selected source graphs into one set of statements before reasoning. Inferred statements will be stored in provided `target-graph`, or else in the default graph. If `merge-sources` is false (default), source graphs will be reasoned separately and in parallel.")
   var ontology = opt[Option[String]](description = "Ontology to use as rule source. If the passed value is a valid filename, the ontology will be read from the file. Otherwise, if the value is an ontology IRI, it will be loaded from the database if such a graph exists, or else, from the web.")
   var rulesFile = opt[Option[File]](description = "Reasoning rules in Jena syntax.")
-  var parallelism = opt[Int](default = Math.min(Runtime.getRuntime().availableProcessors / 2, 2), description = "Maximum graphs to simultaneously either read from database or run reasoning on.")
+  var parallelism = opt[Int](default = Math.max(Runtime.getRuntime().availableProcessors / 2, 2), description = "Maximum graphs to simultaneously either read from database or run reasoning on.")
   var sourceGraphsQuery = opt[Option[String]](description = "File name or query text of SPARQL select used to obtain graph names on which to perform reasoning. The query must return a column named `source_graph`.")
   var sourceGraphs = opt[Option[String]](description = "Space-separated graph IRIs on which to perform reasoning (must be passed as one shell argument).")
 
