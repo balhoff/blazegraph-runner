@@ -36,6 +36,7 @@ import com.typesafe.scalalogging.LazyLogging
 import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl._
+import org.openrdf.model.URI
 
 object Reason extends Command(description = "Materialize inferences") with Common with LazyLogging {
 
@@ -47,6 +48,8 @@ object Reason extends Command(description = "Materialize inferences") with Commo
   var parallelism = opt[Int](default = Math.max(Runtime.getRuntime().availableProcessors / 2, 2), description = "Maximum graphs to simultaneously either read from database or run reasoning on.")
   var sourceGraphsQuery = opt[Option[String]](description = "File name or query text of SPARQL select used to obtain graph names on which to perform reasoning. The query must return a column named `source_graph`.")
   var sourceGraphs = opt[Option[String]](description = "Space-separated graph IRIs on which to perform reasoning (must be passed as one shell argument).")
+
+  private val ProvDerivedFrom = new URIImpl("http://www.w3.org/ns/prov#wasDerivedFrom")
 
   private def computedTargetGraph(graph: String): Option[String] = targetGraph.orElse {
     if (mergeSources) None
@@ -94,41 +97,49 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     val sourceGraphGroups = if (mergeSources) List(sourceGraphNames -> computedTargetGraph(sourceGraphNames.head))
     else sourceGraphNames.map(g => List(g) -> computedTargetGraph(g))
 
-    // Now process each graph group in 3 stages: 
-    // (1) load graph group statements from database 
+    // Now process each graph group in 3 stages:
+    // (1) load graph group statements from database
     // (2) run reasoner over statements
     // (3) insert inferred statements into database
     // Each of these will happen in parallel up to the maximum 'parallelism' value, but early stages will wait
     // to start a new graph group if downstream stages are busy.
     val done = Source(sourceGraphGroups)
       .mapAsyncUnordered(parallelism) {
-        case (graphs, targetGraph) =>
-          logger.debug(s"Loading from $graphs for target $targetGraph")
-          statementsForGraphs(graphs, blazegraph.getRepository).map((_, targetGraph))
+        case (graphs, targetGraphName) =>
+          logger.debug(s"Loading from $graphs for target $targetGraphName")
+          val sourceGraphs = graphs.map(new URIImpl(_))
+          val maybeTargetGraph = targetGraphName.map(new URIImpl(_))
+          statementsForGraphs(sourceGraphs, blazegraph.getRepository).map((_, sourceGraphs, maybeTargetGraph))
       }
       .mapAsyncUnordered(parallelism) {
-        case (statements, targetGraph) => Future {
-          logger.debug(s"Reasoning for $targetGraph")
+        case (statements, sourceGraphs, maybeTargetGraph) => Future {
+          val factory = blazegraph.getValueFactory
+          val provenanceStatements = for {
+            sourceGraph <- sourceGraphs
+            targetGraph <- maybeTargetGraph
+          } yield factory.createStatement(targetGraph, ProvDerivedFrom, sourceGraph)
+          logger.debug(s"Reasoning for $maybeTargetGraph")
           val triples = statements.map(ArachneBridge.createTriple)
           val wm = arachne.processTriples(triples)
           val inferred = wm.facts -- wm.asserted
-          val result = (inferred.map(ArachneBridge.createStatement(blazegraph.getValueFactory, _)), targetGraph)
-          logger.debug(s"Done reasoning $targetGraph")
+          val result = (inferred.map(ArachneBridge.createStatement(factory, _)) ++ provenanceStatements,
+            maybeTargetGraph)
+          logger.debug(s"Done reasoning $maybeTargetGraph")
           result
         }
       }
       .runForeach {
-        case (statements, targetGraph) =>
-          logger.debug(s"Inserting result into $targetGraph")
+        case (statements, maybeTargetGraph) =>
+          logger.debug(s"Inserting result into $maybeTargetGraph")
           blocking {
             val mutationCounter = new MutationCounter()
             blazegraph.addChangeLog(mutationCounter)
             blazegraph.begin()
-            blazegraph.add(statements.asJava, targetGraph.map(new URIImpl(_)).get)
+            blazegraph.add(statements.asJava, maybeTargetGraph.get)
             blazegraph.commit()
             val mutations = mutationCounter.mutationCount
             blazegraph.removeChangeLog(mutationCounter)
-            logger.info(s"$mutations changes in $targetGraph")
+            logger.info(s"$mutations changes in $maybeTargetGraph")
           }
       }
     Await.ready(done, Duration.Inf).onComplete {
@@ -149,13 +160,15 @@ object Reason extends Command(description = "Materialize inferences") with Commo
 
   private def tryLoadOntologyFromDatabase(graphName: String, repository: BigdataSailRepository): Option[OWLOntology] = try {
     val manager = OWLManager.createOWLOntologyManager()
-    val statements = Await.result(statementsForGraphs(List(graphName), repository), Duration.Inf)
-    val source = new RioMemoryTripleSource(statements.asJava)
-    val parser = new RioParserImpl(new RioRDFXMLDocumentFormatFactory())
-    val newOnt = manager.createOntology()
-    //TODO what will happen with imports? Ignored, or loaded from web??
-    parser.parse(source, newOnt, new OWLOntologyLoaderConfiguration())
-    Option(newOnt)
+    val statements = Await.result(statementsForGraphs(List(new URIImpl(graphName)), repository), Duration.Inf)
+    if (statements.nonEmpty) {
+      val source = new RioMemoryTripleSource(statements.asJava)
+      val parser = new RioParserImpl(new RioRDFXMLDocumentFormatFactory())
+      val newOnt = manager.createOntology()
+      //TODO what will happen with imports? Ignored, or loaded from web??
+      parser.parse(source, newOnt, new OWLOntologyLoaderConfiguration())
+      Option(newOnt)
+    } else None
   } catch {
     case NonFatal(e) => None
   }
@@ -167,10 +180,10 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     case NonFatal(e) => None
   }
 
-  private def statementsForGraphs(graphs: Seq[String], repository: BigdataSailRepository): Future[Set[Statement]] = Future {
+  private def statementsForGraphs(graphs: Seq[URI], repository: BigdataSailRepository): Future[Set[Statement]] = Future {
     blocking {
       val connection = repository.getReadOnlyConnection
-      val result = connection.getStatements(null, null, null, false, graphs.map(new URIImpl(_)): _*)
+      val result = connection.getStatements(null, null, null, false, graphs: _*)
       var statements = Set.empty[Statement]
       while (result.hasNext) statements += result.next
       result.close()

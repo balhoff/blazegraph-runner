@@ -4,13 +4,13 @@ organization  := "org.renci"
 
 name          := "blazegraph-runner"
 
-version       := "1.2.5"
+version       := "1.3"
 
 licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Clause"))
 
 homepage := Some(url("https://github.com/balhoff/blazegraph-runner"))
 
-scalaVersion  := "2.12.3"
+scalaVersion  := "2.12.5"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
