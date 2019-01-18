@@ -1,19 +1,17 @@
 package org.renci.blazegraph
 
-import java.io.File
-import java.io.FileInputStream
+import java.io.{File, FileInputStream}
 
-import scala.collection.JavaConverters._
-
+import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
+import com.bigdata.rdf.store.DataLoader
 import org.apache.commons.io.FileUtils
 import org.apache.jena.system.JenaSystem
 import org.backuity.clist._
 import org.openrdf.model._
-import org.openrdf.rio.RDFFormat
-import org.openrdf.rio.Rio
+import org.openrdf.rio.{RDFFormat, Rio}
 import org.openrdf.rio.helpers.RDFHandlerBase
 
-import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
+import scala.collection.JavaConverters._
 
 object Load extends Command(description = "Load triples") with Common with GraphSpecific {
 
@@ -30,30 +28,23 @@ object Load extends Command(description = "Load triples") with Common with Graph
 
   def runUsingConnection(blazegraph: BigdataSailRepositoryConnection): Unit = {
     JenaSystem.init()
-    val factory = blazegraph.getValueFactory
+    val tripleStore = blazegraph.getSailConnection.getTripleStore
+    val loader = new DataLoader(tripleStore)
     val filesToLoad = dataFiles.flatMap(data => if (data.isFile) List(data) else FileUtils.listFiles(data, inputFormat.getFileExtensions.asScala.toArray, true).asScala).filter(_.isFile)
     filesToLoad.foreach { file =>
       logger.info(s"Loading $file")
       val ontGraphOpt = if (useOntologyGraph) findOntologyURI(file) else None
-      val determinedGraphOpt = ontGraphOpt.orElse(graphOpt).map(factory.createURI)
-      val mutations = loadFileToBlazegraph(blazegraph, file, determinedGraphOpt)
-      logger.info(s"$mutations changes")
+      val determinedGraphOpt = ontGraphOpt.orElse(graphOpt)
+      val stats = loader.loadFiles(file, base, inputFormat, determinedGraphOpt.orNull, null)
+      logger.info(stats.toString)
     }
-  }
-
-  private def loadFileToBlazegraph(blazegraph: BigdataSailRepositoryConnection, file: File, graphOpt: Option[URI]): Int = {
-    val mutationCounter = new MutationCounter()
-    blazegraph.addChangeLog(mutationCounter)
-    blazegraph.begin()
-    blazegraph.add(file, base, inputFormat, graphOpt.getOrElse(null))
-    blazegraph.commit()
-    blazegraph.removeChangeLog(mutationCounter)
-    mutationCounter.mutationCount
+    loader.endSource()
+    tripleStore.commit()
   }
 
   /**
-   * Tries to efficiently find the ontology IRI triple without loading the whole file.
-   */
+    * Tries to efficiently find the ontology IRI triple without loading the whole file.
+    */
   def findOntologyURI(file: File): Option[String] = {
     object Handler extends RDFHandlerBase {
       override def handleStatement(statement: Statement): Unit = if (statement.getObject.stringValue == "http://www.w3.org/2002/07/owl#Ontology" &&
