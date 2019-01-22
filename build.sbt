@@ -10,11 +10,9 @@ licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Cla
 
 homepage := Some(url("https://github.com/balhoff/blazegraph-runner"))
 
-scalaVersion  := "2.12.5"
+scalaVersion  := "2.12.8"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
-
-scalacOptions in Test ++= Seq("-Yrangepos")
 
 mainClass in Compile := Some("org.renci.blazegraph.Main")
 

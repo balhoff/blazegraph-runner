@@ -7,3 +7,5 @@ catalog-v001.xml
 project/project
 project/target
 target
+/.idea/
+blazegraph-runner.log
