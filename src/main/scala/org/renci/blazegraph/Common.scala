@@ -34,7 +34,6 @@ trait Common extends Command with LazyLogging {
 
     blazegraph.close()
     repository.shutDown()
-    //sail.shutDown()
   }
 
   def runUsingConnection(blazegraph: BigdataSailRepositoryConnection): Unit
