@@ -44,7 +44,17 @@ Commands
    update <update> : SPARQL update
 ```
 
-## Load
+## Commands
+
+There are a number of general options that apply to all commands:
+
+- **journal**: Blazegraph journal file
+- **properties**: Blazegraph properties file. If this is not set, a [default properties file](https://github.com/balhoff/blazegraph-runner/blob/master/src/main/resources/org/renci/blazegraph/blazegraph.properties) is used that includes named graphs and text indexing.
+- **informat**: Input format. Valid values for this option depend on the command.
+- **outformat**: Output format. Valid values for this option depend on the command.
+
+
+### Load
 
 Load RDF data from files into a Blazegraph journal. A list of files or folders can be passed to the command; folders will 
 be recursively searched for data files.
@@ -63,7 +73,7 @@ blazegraph-runner load --journal=blazegraph.jnl --use-ontology-graph=true --info
 If you set `--use-ontology-graph=true` and also provide a value for `--graph`, the `--graph` will be used as a fallback value 
 in the case that an ontology IRI is not found.
 
-## Dump
+### Dump
 
 Export RDF data from a Blazegraph journal to a file. If a value for `--graph` is provided, only data from that graph is 
 exported. If `--graph` is not provided, data from the default graph will be exported. *In the future this command should 
@@ -73,7 +83,7 @@ be extended to dump all graphs to separate file or dump all data to a quad forma
 blazegraph-runner dump --journal=blazegraph.jnl --graph="http://example.org/mydata" --outformat=turtle mydata.ttl
 ```
 
-## Select
+### Select
 
 Query a Blazegraph journal using SPARQL SELECT. Results can be output as TSV, XML, or JSON.
 
@@ -81,7 +91,7 @@ Query a Blazegraph journal using SPARQL SELECT. Results can be output as TSV, XM
 blazegraph-runner select --journal=blazegraph.jnl --outformat=tsv myquery.rq mydata.tsv
 ```
 
-## Construct
+### Construct
 
 Query a Blazegraph journal using SPARQL CONSTRUCT. Results can be output as Turtle, RDFXML, or N-triples.
 
@@ -89,7 +99,7 @@ Query a Blazegraph journal using SPARQL CONSTRUCT. Results can be output as Turt
 blazegraph-runner construct --journal=blazegraph.jnl --outformat=turtle myquery.rq mydata.ttl
 ```
 
-## Update
+### Update
 
 Apply a SPARQL UPDATE to modify data in a Blazegraph journal.
 
@@ -97,7 +107,7 @@ Apply a SPARQL UPDATE to modify data in a Blazegraph journal.
 blazegraph-runner update --journal=blazegraph.jnl myupdate.rq
 ```
 
-## Reason
+### Reason
 
 Materialize inferences derived from data in a Blazegraph journal, and store the inferred triples back to the journal. Reasoning rules are applied in-memory using the [Arachne](https://github.com/balhoff/arachne) reasoner. This command has a number of different options:
 
@@ -109,3 +119,34 @@ Materialize inferences derived from data in a Blazegraph journal, and store the 
 - **source-graphs-query**: file name or query text of SPARQL SELECT query used to obtain graph IRIs on which to perform reasoning. The query must return a column named `source_graph`.
 - **merge-sources**: whether to merge all selected source graphs into one set of statements before reasoning. Inferred statements will be stored in provided `target-graph`, or else in the default graph. If `merge-sources` is false (default), source graphs will be reasoned separately and in parallel, with results stored either together in `target-graph` or separately using `append-graph-name`.
 - **parallelism**: set the number of concurrent workers to use for reasoning on a set of graphs. Arachne is single-threaded, but if reasoning is applied independently to a set of graphs, this can occur in parallel.
+
+This command line will select all named graphs from the database, materialize inferences for each one separately (up to 8 simultaneously), using rules derived from the RO ontology, and store the inferred triples in separate graphs corresponding to each source graph:
+```
+blazegraph-runner reason --journal=blazegraph.jnl --ontology="http://purl.obolibrary.org/obo/ro.owl" --source-graphs-query=graphs.rq --append-graph-name="#inferred" --merge-sources=false --parallelism=8
+```
+
+`graphs.rq` could look like this:
+
+```sparql
+SELECT DISTINCT ?source_graph
+WHERE {
+  GRAPH ?source_graph { ?s ?p ?o . }
+}
+```
+
+## Building
+
+If you clone the `blazegraph-runner` repository and want to build locally, you will need to have [SBT](https://www.scala-sbt.org) installed.
+
+#### Package a local version to run from the repo:
+
+```
+sbt stage
+./target/universal/stage/bin/blazegraph-runner <options>
+```
+
+#### Zip up a distribution
+
+```
+sbt universal:packageZipTarball
+```
