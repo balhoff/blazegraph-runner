@@ -1,16 +1,16 @@
 enablePlugins(JavaAppPackaging)
 
-organization  := "org.renci"
+organization := "org.renci"
 
-name          := "blazegraph-runner"
+name := "blazegraph-runner"
 
-version       := "1.5-SNAPSHOT"
+version := "1.5-SNAPSHOT"
 
 licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Clause"))
 
 homepage := Some(url("https://github.com/balhoff/blazegraph-runner"))
 
-scalaVersion  := "2.13.1"
+scalaVersion := "2.13.1"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
