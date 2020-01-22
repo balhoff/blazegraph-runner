@@ -1,7 +1,6 @@
 package org.renci.blazegraph
 
-import com.bigdata.rdf.changesets.IChangeLog
-import com.bigdata.rdf.changesets.IChangeRecord
+import com.bigdata.rdf.changesets.{IChangeLog, IChangeRecord}
 
 class MutationCounter extends IChangeLog {
 

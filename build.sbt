@@ -1,16 +1,16 @@
 enablePlugins(JavaAppPackaging)
 
-organization  := "org.renci"
+organization := "org.renci"
 
-name          := "blazegraph-runner"
+name := "blazegraph-runner"
 
-version       := "1.4"
+version := "1.5-SNAPSHOT"
 
 licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Clause"))
 
 homepage := Some(url("https://github.com/balhoff/blazegraph-runner"))
 
-scalaVersion  := "2.12.8"
+scalaVersion := "2.13.1"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
@@ -23,13 +23,11 @@ fork in Test := true
 libraryDependencies ++= {
   Seq(
     "com.blazegraph"              %  "bigdata-core"           % "2.1.4" exclude("org.slf4j", "slf4j-log4j12"),
-    "org.backuity.clist"          %% "clist-core"             % "3.2.2",
-    "org.backuity.clist"          %% "clist-macros"           % "3.2.2" % "provided",
-    "com.typesafe.akka"           %% "akka-stream"            % "2.5.3",
-    "org.geneontology"            %% "arachne"                % "1.2",
-    "com.typesafe.scala-logging"  %% "scala-logging"          % "3.7.1",
-    "ch.qos.logback"              %  "logback-classic"        % "1.2.3",
-    "org.codehaus.groovy"         %  "groovy-all"             % "2.4.6",
-    "org.apache.jena"             %  "apache-jena-libs"       % "3.2.0" pomOnly()
+    "org.backuity.clist"          %% "clist-core"             % "3.5.1",
+    "org.backuity.clist"          %% "clist-macros"           % "3.5.1" % "provided",
+    "com.typesafe.akka"           %% "akka-stream"            % "2.6.1",
+    "org.geneontology"            %% "arachne"                % "1.2.1",
+    "com.outr"                    %% "scribe-slf4j"           % "2.7.10",
+    "org.apache.jena"             %  "apache-jena-libs"       % "3.13.1" pomOnly()
   )
 }

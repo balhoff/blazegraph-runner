@@ -2,43 +2,33 @@ package org.renci.blazegraph
 
 import java.io.File
 
-import scala.collection.JavaConverters._
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.concurrent.blocking
-import scala.concurrent.duration.Duration
-import scala.util.Failure
-import scala.util.control.NonFatal
-
-import org.apache.jena.reasoner.rulesys.Rule
-import org.apache.jena.system.JenaSystem
-import org.backuity.clist._
-import org.geneontology.jena.OWLtoRules
-import org.geneontology.rules.engine.RuleEngine
-import org.geneontology.rules.util.Bridge
-import org.openrdf.model.Statement
-import org.openrdf.model.impl.URIImpl
-import org.openrdf.query.QueryLanguage
-import org.semanticweb.owlapi.apibinding.OWLManager
-import org.semanticweb.owlapi.formats.RioRDFXMLDocumentFormatFactory
-import org.semanticweb.owlapi.model.IRI
-import org.semanticweb.owlapi.model.OWLOntology
-import org.semanticweb.owlapi.model.OWLOntologyLoaderConfiguration
-import org.semanticweb.owlapi.model.parameters.Imports
-import org.semanticweb.owlapi.rio.RioMemoryTripleSource
-import org.semanticweb.owlapi.rio.RioParserImpl
-
-import com.bigdata.rdf.sail.BigdataSailRepository
-import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
-import com.typesafe.scalalogging.LazyLogging
-
 import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl._
-import org.openrdf.model.URI
+import com.bigdata.rdf.sail.{BigdataSailRepository, BigdataSailRepositoryConnection}
+import org.apache.jena.reasoner.rulesys.Rule
+import org.apache.jena.sys.JenaSystem
+import org.backuity.clist._
+import org.geneontology.jena.OWLtoRules
+import org.geneontology.rules.engine.{RuleEngine, Triple}
+import org.geneontology.rules.util.Bridge
+import org.openrdf.model.impl.URIImpl
+import org.openrdf.model.{Statement, URI}
+import org.openrdf.query.QueryLanguage
+import org.semanticweb.owlapi.apibinding.OWLManager
+import org.semanticweb.owlapi.formats.RioRDFXMLDocumentFormatFactory
+import org.semanticweb.owlapi.model.parameters.Imports
+import org.semanticweb.owlapi.model.{IRI, OWLOntology, OWLOntologyLoaderConfiguration}
+import org.semanticweb.owlapi.rio.{RioMemoryTripleSource, RioParserImpl}
 
-object Reason extends Command(description = "Materialize inferences") with Common with LazyLogging {
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future, blocking}
+import scala.jdk.CollectionConverters._
+import scala.util.Failure
+import scala.util.control.NonFatal
+
+object Reason extends Command(description = "Materialize inferences") with Common {
 
   var targetGraph = opt[Option[String]](description = "Named graph to store inferred statements.")
   var appendGraphName = opt[String](default = "_inferred", description = "If a target-graph is not provided, append this text to the end of source graph name to use as target graph for inferred statements.")
@@ -69,7 +59,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     val extraRules = rulesFile.map(file => Bridge.rulesFromJena(Rule.parseRules(io.Source.fromFile(file, "utf-8").mkString).asScala).toSet).getOrElse(Set.empty)
     val allRules = ontRules ++ extraRules
     if (allRules.isEmpty) {
-      logger.error(s"No rules provided.")
+      scribe.error(s"No rules provided.")
       System.exit(1)
     }
     implicit val system = ActorSystem("Reason")
@@ -85,14 +75,14 @@ object Reason extends Command(description = "Materialize inferences") with Commo
         val bindingSet = sourcesQueryResult.next()
         if (bindingSet.hasBinding("source_graph")) sourceGraphNames = bindingSet.getValue("source_graph").stringValue :: sourceGraphNames
         else {
-          logger.error(s"The SPARQL query for source graphs must return a binding for the variable 'source_graph'. Found instead: ${bindingSet.getBindingNames.asScala.mkString(",")}")
+          scribe.error(s"The SPARQL query for source graphs must return a binding for the variable 'source_graph'. Found instead: ${bindingSet.getBindingNames.asScala.mkString(",")}")
           system.terminate()
           System.exit(1)
         }
       }
       sourcesQueryResult.close()
     }
-    logger.info(s"Reasoning on source graphs: \n${sourceGraphNames.mkString("\n")}")
+    scribe.info(s"Reasoning on source graphs: \n${sourceGraphNames.mkString("\n")}")
 
     val sourceGraphGroups = if (mergeSources) List(sourceGraphNames -> computedTargetGraph(sourceGraphNames.head))
     else sourceGraphNames.map(g => List(g) -> computedTargetGraph(g))
@@ -106,7 +96,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     val done = Source(sourceGraphGroups)
       .mapAsyncUnordered(parallelism) {
         case (graphs, targetGraphName) =>
-          logger.debug(s"Loading from $graphs for target $targetGraphName")
+          scribe.debug(s"Loading from $graphs for target $targetGraphName")
           val sourceGraphs = graphs.map(new URIImpl(_))
           val maybeTargetGraph = targetGraphName.map(new URIImpl(_))
           statementsForGraphs(sourceGraphs, blazegraph.getRepository).map((_, sourceGraphs, maybeTargetGraph))
@@ -118,19 +108,19 @@ object Reason extends Command(description = "Materialize inferences") with Commo
             sourceGraph <- sourceGraphs
             targetGraph <- maybeTargetGraph
           } yield factory.createStatement(targetGraph, ProvDerivedFrom, sourceGraph)
-          logger.debug(s"Reasoning for $maybeTargetGraph")
+          scribe.debug(s"Reasoning for $maybeTargetGraph")
           val triples = statements.map(ArachneBridge.createTriple)
           val wm = arachne.processTriples(triples)
-          val inferred = wm.facts -- wm.asserted
+          val inferred: Set[Triple] = wm.facts.toSet -- wm.asserted
           val result = (inferred.map(ArachneBridge.createStatement(factory, _)) ++ provenanceStatements,
             maybeTargetGraph)
-          logger.debug(s"Done reasoning $maybeTargetGraph")
+          scribe.debug(s"Done reasoning $maybeTargetGraph")
           result
         }
       }
       .runForeach {
         case (statements, maybeTargetGraph) =>
-          logger.debug(s"Inserting result into $maybeTargetGraph")
+          scribe.debug(s"Inserting result into $maybeTargetGraph")
           blocking {
             val mutationCounter = new MutationCounter()
             blazegraph.addChangeLog(mutationCounter)
@@ -139,7 +129,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
             blazegraph.commit()
             val mutations = mutationCounter.mutationCount
             blazegraph.removeChangeLog(mutationCounter)
-            logger.info(s"$mutations changes in $maybeTargetGraph")
+            scribe.info(s"$mutations changes in $maybeTargetGraph")
           }
       }
     Await.ready(done, Duration.Inf).onComplete {
@@ -147,7 +137,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
         e.printStackTrace()
         system.terminate()
         System.exit(1)
-      case _ => system.terminate()
+      case _          => system.terminate()
     }
   }
 
