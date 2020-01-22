@@ -1,15 +1,12 @@
 package org.renci.blazegraph
 
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.FileOutputStream
+import java.io.{BufferedOutputStream, File, FileOutputStream}
 
-import scala.io.Source
-
+import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
 import org.backuity.clist._
 import org.openrdf.query.QueryLanguage
 
-import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
+import scala.io.Source
 
 object Construct extends Command(description = "SPARQL construct") with Common with RDFOutputting {
 

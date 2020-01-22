@@ -1,18 +1,14 @@
 package org.renci.blazegraph
 
-import java.io.File
-import java.io.FileInputStream
+import java.io.{File, FileInputStream}
 import java.util.Properties
 
-import org.backuity.clist._
-
 import com.bigdata.journal.Options
-import com.bigdata.rdf.sail.BigdataSail
-import com.bigdata.rdf.sail.BigdataSailRepository
-import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
-import com.typesafe.scalalogging.LazyLogging
+import com.bigdata.rdf.sail.{BigdataSail, BigdataSailRepository, BigdataSailRepositoryConnection}
+import org.backuity.clist._
+import scribe.Level
 
-trait Common extends Command with LazyLogging {
+trait Common extends Command {
 
   var informat = opt[Option[String]](name = "informat", description = "Input format")
   var journalFile = opt[File](name = "journal", default = new File("blazegraph.jnl"), description = "Blazegraph journal file")
@@ -20,6 +16,7 @@ trait Common extends Command with LazyLogging {
   var outformat = opt[Option[String]](name = "outformat", description = "Output format")
 
   final def run(): Unit = {
+    scribe.Logger.root.clearHandlers().clearModifiers().withHandler(minimumLevel = Some(Level.Info)).replace()
     val blazegraphProperties = new Properties()
     val propertiesStream = inputProperties.map(new FileInputStream(_)).getOrElse(this.getClass.getResourceAsStream("blazegraph.properties"))
     blazegraphProperties.load(propertiesStream)

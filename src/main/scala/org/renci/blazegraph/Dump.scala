@@ -1,13 +1,10 @@
 package org.renci.blazegraph
 
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.FileOutputStream
-
-import org.backuity.clist._
-import org.openrdf.query.QueryLanguage
+import java.io.{BufferedOutputStream, File, FileOutputStream}
 
 import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
+import org.backuity.clist._
+import org.openrdf.query.QueryLanguage
 
 object Dump extends Command(description = "Dump Blazegraph database to an RDF file") with Common with RDFOutputting with GraphSpecific {
 

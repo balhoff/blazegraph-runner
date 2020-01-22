@@ -1,12 +1,8 @@
 package org.renci.blazegraph
 
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.OutputStream
+import java.io.{BufferedOutputStream, File, FileOutputStream, OutputStream}
 
-import scala.io.Source
-
+import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
 import org.backuity.clist._
 import org.openrdf.query.QueryLanguage
 import org.openrdf.query.resultio.TupleQueryResultWriter
@@ -14,7 +10,7 @@ import org.openrdf.query.resultio.sparqljson.SPARQLResultsJSONWriter
 import org.openrdf.query.resultio.sparqlxml.SPARQLResultsXMLWriter
 import org.openrdf.query.resultio.text.tsv.SPARQLResultsTSVWriter
 
-import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
+import scala.io.Source
 
 object Select extends Command(description = "SPARQL select") with Common {
 

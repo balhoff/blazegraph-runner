@@ -5,13 +5,13 @@ import java.io.{File, FileInputStream}
 import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
 import com.bigdata.rdf.store.DataLoader
 import org.apache.commons.io.FileUtils
-import org.apache.jena.system.JenaSystem
+import org.apache.jena.sys.JenaSystem
 import org.backuity.clist._
 import org.openrdf.model._
-import org.openrdf.rio.{RDFFormat, Rio}
 import org.openrdf.rio.helpers.RDFHandlerBase
+import org.openrdf.rio.{RDFFormat, Rio}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object Load extends Command(description = "Load triples") with Common with GraphSpecific {
 
@@ -32,11 +32,11 @@ object Load extends Command(description = "Load triples") with Common with Graph
     val loader = new DataLoader(tripleStore)
     val filesToLoad = dataFiles.flatMap(data => if (data.isFile) List(data) else FileUtils.listFiles(data, inputFormat.getFileExtensions.asScala.toArray, true).asScala).filter(_.isFile)
     filesToLoad.foreach { file =>
-      logger.info(s"Loading $file")
+      scribe.info(s"Loading $file")
       val ontGraphOpt = if (useOntologyGraph) findOntologyURI(file) else None
       val determinedGraphOpt = ontGraphOpt.orElse(graphOpt)
       val stats = loader.loadFiles(file, base, inputFormat, determinedGraphOpt.orNull, null)
-      logger.info(stats.toString)
+      scribe.info(stats.toString)
     }
     loader.endSource()
     tripleStore.commit()
@@ -61,7 +61,7 @@ object Load extends Command(description = "Load triples") with Common with Graph
     } catch {
       case FoundTripleException(statement) => {
         if (statement.getSubject.isInstanceOf[BNode]) {
-          logger.warn(s"Blank node subject for ontology triple: $statement")
+          scribe.warn(s"Blank node subject for ontology triple: $statement")
           None
         } else Option(statement.getSubject.stringValue)
       }

@@ -2,12 +2,11 @@ package org.renci.blazegraph
 
 import java.io.File
 
-import scala.io.Source
-
+import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
 import org.backuity.clist._
 import org.openrdf.query.QueryLanguage
 
-import com.bigdata.rdf.sail.BigdataSailRepositoryConnection
+import scala.io.Source
 
 object Update extends Command(description = "SPARQL update") with Common {
 
@@ -22,7 +21,7 @@ object Update extends Command(description = "SPARQL update") with Common {
     blazegraph.commit()
     val mutations = mutationCounter.mutationCount
     blazegraph.removeChangeLog(mutationCounter)
-    logger.info(s"$mutations changes")
+    scribe.info(s"$mutations changes")
   }
 
 }
