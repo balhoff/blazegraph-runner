@@ -17,7 +17,7 @@ object Select extends Command(description = "SPARQL select") with Common {
   var queryFile = arg[File](name = "query")
   var output = arg[File]()
 
-  def createOutputWriter(out: OutputStream): TupleQueryResultWriter = outformat.getOrElse("tsv") match {
+  def createOutputWriter(out: OutputStream): TupleQueryResultWriter = outformat.getOrElse("tsv").toLowerCase match {
     case "tsv"  => new SPARQLResultsTSVWriter(out)
     case "xml"  => new SPARQLResultsXMLWriter(out)
     case "json" => new SPARQLResultsJSONWriter(out)

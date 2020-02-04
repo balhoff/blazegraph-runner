@@ -27,6 +27,7 @@ libraryDependencies ++= {
     "org.backuity.clist"          %% "clist-macros"           % "3.5.1" % "provided",
     "com.typesafe.akka"           %% "akka-stream"            % "2.6.1",
     "org.geneontology"            %% "arachne"                % "1.2.1",
+    "org.geneontology"            %% "whelk"                  % "0.4",
     "com.outr"                    %% "scribe-slf4j"           % "2.7.10",
     "org.apache.jena"             %  "apache-jena-libs"       % "3.13.1" pomOnly()
   )
