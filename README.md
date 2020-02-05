@@ -24,7 +24,7 @@ Commands
    dump [command options] <output> : Dump Blazegraph database to an RDF file
       --graph : Named graph to load triples into
 
-   load [command options] <dataFiles> ... : Load triples
+   load [command options] <data-files> ... : Load triples
       --base=STRING
       --graph              : Named graph to load triples into
       --use-ontology-graph
@@ -34,6 +34,7 @@ Commands
       --merge-sources            : Merge all selected source graphs into one set of statements before reasoning. Inferred statements will be stored in provided `target-graph`, or else in the default graph. If `merge-sources` is false (default), source graphs will be reasoned separately and in parallel.
       --ontology                 : Ontology to use as rule source. If the passed value is a valid filename, the ontology will be read from the file. Otherwise, if the value is an ontology IRI, it will be loaded from the database if such a graph exists, or else, from the web.
       --parallelism=NUM          : Maximum graphs to simultaneously either read from database or run reasoning on.
+      --reasoner=STRING          : Reasoner choice: 'arachne' (default) or 'whelk'
       --rules-file               : Reasoning rules in Jena syntax.
       --source-graphs            : Space-separated graph IRIs on which to perform reasoning (must be passed as one shell argument).
       --source-graphs-query      : File name or query text of SPARQL select used to obtain graph names on which to perform reasoning. The query must return a column named `source_graph`.
