@@ -94,6 +94,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     // (3) insert inferred statements into database
     // Each of these will happen in parallel up to the maximum 'parallelism' value, but early stages will wait
     // to start a new graph group if downstream stages are busy.
+    blazegraph.begin()
     val done = Source(sourceGraphGroups)
       .mapAsyncUnordered(parallelism) {
         case (graphs, targetGraphName) =>
@@ -118,24 +119,21 @@ object Reason extends Command(description = "Materialize inferences") with Commo
       }
       .runForeach {
         case (statements, Some(targetGraph)) =>
-          scribe.debug(s"Inserting result into $targetGraph")
           blocking {
-            val mutationCounter = new MutationCounter()
-            blazegraph.addChangeLog(mutationCounter)
-            blazegraph.begin()
+            scribe.debug(s"Inserting result into $targetGraph")
             blazegraph.add(statements.asJava, targetGraph)
-            blazegraph.commit()
-            val mutations = mutationCounter.mutationCount
-            blazegraph.removeChangeLog(mutationCounter)
-            scribe.info(s"$mutations changes in $targetGraph")
           }
       }
     Await.ready(done, Duration.Inf).onComplete {
       case Failure(e) =>
+        blazegraph.rollback()
         e.printStackTrace()
         system.terminate()
         System.exit(1)
-      case _          => system.terminate()
+      case _          => {
+        blazegraph.commit()
+        system.terminate()
+      }
     }
   }
 
