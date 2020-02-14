@@ -117,21 +117,25 @@ object Reason extends Command(description = "Materialize inferences") with Commo
           result
         }
       }
-      .runForeach {
-        case (statements, Some(targetGraph)) =>
-          blocking {
+      .batch(1000, (item) => List(item))((agg, item) => item :: agg)
+      .runForeach { aggregatedItems =>
+        blocking {
+          blazegraph.begin()
+          for {
+            (statements, Some(targetGraph)) <- aggregatedItems
+          } {
             scribe.debug(s"Inserting result into $targetGraph")
             blazegraph.add(statements.asJava, targetGraph)
           }
+          blazegraph.commit()
+        }
       }
     Await.ready(done, Duration.Inf).onComplete {
       case Failure(e) =>
-        blazegraph.rollback()
         e.printStackTrace()
         system.terminate()
         System.exit(1)
       case _          => {
-        blazegraph.commit()
         system.terminate()
       }
     }
