@@ -197,7 +197,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
 
     private val ontRules = ontology.toSet[OWLOntology].flatMap(ont => RulesBridge.rulesFromJena(OWLtoRules.translate(ont, Imports.INCLUDED, true, true, false, true)).toSet)
     private val extraRules = rules.toSet[String].flatMap(rs => RulesBridge.rulesFromJena(Rule.parseRules(rs).asScala).toSet)
-    private val indirectRules = if (assertDirectTypes) ontology.toSet[OWLOntology].flatMap(ont => OWLtoRules.indirectRules(ont)) else Set.empty[Rule]
+    private val indirectRules = if (assertDirectTypes) ontology.toSet[OWLOntology].flatMap(ont => RulesBridge.rulesFromJena(OWLtoRules.indirectRules(ont))) else Set.empty
     private val allRules = ontRules ++ extraRules ++ indirectRules
     private val arachne = new RuleEngine(allRules, false)
 
