@@ -14,7 +14,7 @@ import org.geneontology.rules.engine.{RuleEngine, Triple}
 import org.geneontology.rules.util.{Bridge => RulesBridge}
 import org.geneontology.whelk.{AtomicConcept, BuiltIn, ConceptAssertion, ConceptInclusion, ExistentialRestriction, Individual, Nominal, Reasoner, Role, RoleAssertion, Bridge => WhelkBridge}
 import org.openrdf.model.impl.URIImpl
-import org.openrdf.model.vocabulary.RDF
+import org.openrdf.model.vocabulary.{RDF, SESAME}
 import org.openrdf.model.{Statement, URI, ValueFactory}
 import org.openrdf.query.QueryLanguage
 import org.semanticweb.owlapi.apibinding.OWLManager
@@ -42,8 +42,10 @@ object Reason extends Command(description = "Materialize inferences") with Commo
   var sourceGraphsQuery = opt[Option[String]](description = "File name or query text of SPARQL select used to obtain graph names on which to perform reasoning. The query must return a column named `source_graph`.")
   var sourceGraphs = opt[Option[String]](description = "Space-separated graph IRIs on which to perform reasoning (must be passed as one shell argument).")
   var reasonerChoice = opt[String](name = "reasoner", default = "arachne", description = "Reasoner choice: 'arachne' (default) or 'whelk'")
+  var assertDirectTypes = opt[Boolean](name = "direct-types", "Assert direct types in addition to all inferred types", default = false)
 
   private val ProvDerivedFrom = new URIImpl("http://www.w3.org/ns/prov#wasDerivedFrom")
+  private val DirectType = SESAME.DIRECTTYPE
 
   private def computedTargetGraph(graph: String): Option[String] = targetGraph.orElse {
     if (mergeSources) None
@@ -195,7 +197,8 @@ object Reason extends Command(description = "Materialize inferences") with Commo
 
     private val ontRules = ontology.toSet[OWLOntology].flatMap(ont => RulesBridge.rulesFromJena(OWLtoRules.translate(ont, Imports.INCLUDED, true, true, false, true)).toSet)
     private val extraRules = rules.toSet[String].flatMap(rs => RulesBridge.rulesFromJena(Rule.parseRules(rs).asScala).toSet)
-    private val allRules = ontRules ++ extraRules
+    private val indirectRules = if (assertDirectTypes) ontology.toSet[OWLOntology].flatMap(ont => RulesBridge.rulesFromJena(OWLtoRules.indirectRules(ont))) else Set.empty
+    private val allRules = ontRules ++ extraRules ++ indirectRules
     private val arachne = new RuleEngine(allRules, false)
 
     def computeInferences(statements: Set[Statement]): Set[Statement] = {
@@ -232,8 +235,17 @@ object Reason extends Command(description = "Materialize inferences") with Commo
           val updated = Reasoner.assert(axioms, whelk)
           val newClassAssertions = (updated.classAssertions -- assertedClassAssertions -- tboxClassAssertions)
             .filterNot(_.concept == BuiltIn.Top)
+          val directClassAssertions = if (assertDirectTypes) {
+            for {
+              (Individual(ind), types) <- updated.individualsDirectTypes
+              c @ AtomicConcept(typ) <- types
+              if c != BuiltIn.Top
+            } yield factory.createStatement(factory.createURI(ind), DirectType, factory.createURI(typ))
+          } else Set.empty
           val newRoleAssertions = updated.roleAssertions -- assertedRoleAssertions -- tboxRoleAssertions
-          newClassAssertions.flatMap(ca => classAssertionToStatement(ca, factory).toSet) ++ newRoleAssertions.map(roleAssertionToStatement(_, factory))
+          newClassAssertions.flatMap(ca => classAssertionToStatement(ca, factory).toSet) ++
+            newRoleAssertions.map(roleAssertionToStatement(_, factory)) ++
+            directClassAssertions
         case None      =>
           scribe.error("Couldn't create OWL ontology from RDF statements")
           Set.empty
