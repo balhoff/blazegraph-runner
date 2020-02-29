@@ -86,6 +86,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
       sourcesQueryResult.close()
     }
     scribe.debug(s"Reasoning on source graphs: \n${sourceGraphNames.mkString("\n")}")
+    scribe.info(s"Reasoning on ${sourceGraphNames.size} source graphs")
 
     val sourceGraphGroups = if (mergeSources) List(sourceGraphNames -> computedTargetGraph(sourceGraphNames.head))
     else sourceGraphNames.map(g => List(g) -> computedTargetGraph(g))
