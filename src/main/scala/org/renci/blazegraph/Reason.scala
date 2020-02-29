@@ -42,7 +42,8 @@ object Reason extends Command(description = "Materialize inferences") with Commo
   var sourceGraphsQuery = opt[Option[String]](description = "File name or query text of SPARQL select used to obtain graph names on which to perform reasoning. The query must return a column named `source_graph`.")
   var sourceGraphs = opt[Option[String]](description = "Space-separated graph IRIs on which to perform reasoning (must be passed as one shell argument).")
   var reasonerChoice = opt[String](name = "reasoner", default = "arachne", description = "Reasoner choice: 'arachne' (default) or 'whelk'")
-  var assertDirectTypes = opt[Boolean](name = "direct-types", "Assert direct types in addition to all inferred types", default = false)
+  var assertDirectTypes = opt[Boolean](name = "direct-types", description = "Assert direct types in addition to all inferred types", default = false)
+  var batch = opt[Int](name = "batch", default = 1000, description = "Max number of reasoning results to batch into one commit")
 
   private val ProvDerivedFrom = new URIImpl("http://www.w3.org/ns/prov#wasDerivedFrom")
   private val DirectType = SESAME.DIRECTTYPE
@@ -97,7 +98,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     // (3) insert inferred statements into database
     // Each of these will happen in parallel up to the maximum 'parallelism' value, but early stages will wait
     // to start a new graph group if downstream stages are busy.
-    blazegraph.begin()
+    var doneCount = 0
     val done = Source(sourceGraphGroups)
       .mapAsyncUnordered(parallelism) {
         case (graphs, targetGraphName) =>
@@ -120,7 +121,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
           result
         }
       }
-      .batch(1000, (item) => List(item))((agg, item) => item :: agg)
+      .batch(batch, (item) => List(item))((agg, item) => item :: agg)
       .runForeach { aggregatedItems =>
         blocking {
           blazegraph.begin()
@@ -129,6 +130,8 @@ object Reason extends Command(description = "Materialize inferences") with Commo
           } {
             scribe.debug(s"Inserting result into $targetGraph")
             blazegraph.add(statements.asJava, targetGraph)
+            doneCount += 1
+            if (doneCount % 1000 == 0) scribe.info(s"Done inserting: $doneCount")
           }
           blazegraph.commit()
         }
