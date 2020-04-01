@@ -35,7 +35,7 @@ object Load extends Command(description = "Load triples") with Common with Graph
       scribe.info(s"Loading $file")
       val ontGraphOpt = if (useOntologyGraph) findOntologyURI(file) else None
       val determinedGraphOpt = ontGraphOpt.orElse(graphOpt)
-      val stats = loader.loadFiles(file, base, inputFormat, determinedGraphOpt.orNull, null)
+      val stats = loader.loadFiles(file, base, inputFormat, determinedGraphOpt.getOrElse(file.toURI.toString), null)
       scribe.info(stats.toString)
     }
     loader.endSource()
