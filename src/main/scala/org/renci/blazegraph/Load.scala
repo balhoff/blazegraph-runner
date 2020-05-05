@@ -16,14 +16,22 @@ import scala.jdk.CollectionConverters._
 object Load extends Command(description = "Load triples") with Common with GraphSpecific {
 
   var base = opt[String](default = "")
-  var useOntologyGraph = opt[Boolean](default = false, name = "use-ontology-graph")
+  var useOntologyGraph = opt[Boolean](default = false, name = "use-ontology-graph", description = "Load triples into graph using the ontology IRI. Ignored in the case of a quads file format.")
   var dataFiles = args[Seq[File]]()
 
-  def inputFormat: RDFFormat = informat.getOrElse("turtle") match {
-    case "turtle"   => RDFFormat.TURTLE
-    case "rdfxml"   => RDFFormat.RDFXML
-    case "ntriples" => RDFFormat.NTRIPLES
-    case other      => throw new IllegalArgumentException(s"Invalid input RDF format: $other")
+  def inputFormat: RDFFormat = informat.getOrElse("turtle").toLowerCase match {
+    case "turtle"    => RDFFormat.TURTLE
+    case "ttl"       => RDFFormat.TURTLE
+    case "rdfxml"    => RDFFormat.RDFXML
+    case "rdf-xml"   => RDFFormat.RDFXML
+    case "ntriples"  => RDFFormat.NTRIPLES
+    case "n-triples" => RDFFormat.NTRIPLES
+    case "nt"        => RDFFormat.NTRIPLES
+    case "n-quads"   => RDFFormat.NQUADS
+    case "nquads"    => RDFFormat.NQUADS
+    case "nq"        => RDFFormat.NQUADS
+    case "trig"      => RDFFormat.TRIG
+    case other       => throw new IllegalArgumentException(s"Invalid input RDF format: $other")
   }
 
   def runUsingConnection(blazegraph: BigdataSailRepositoryConnection): Unit = {
@@ -33,7 +41,7 @@ object Load extends Command(description = "Load triples") with Common with Graph
     val filesToLoad = dataFiles.flatMap(data => if (data.isFile) List(data) else FileUtils.listFiles(data, inputFormat.getFileExtensions.asScala.toArray, true).asScala).filter(_.isFile)
     filesToLoad.foreach { file =>
       scribe.info(s"Loading $file")
-      val ontGraphOpt = if (useOntologyGraph) findOntologyURI(file) else None
+      val ontGraphOpt = if (useOntologyGraph && !inputFormat.supportsContexts) findOntologyURI(file) else None
       val determinedGraphOpt = ontGraphOpt.orElse(graphOpt)
       val stats = loader.loadFiles(file, base, inputFormat, determinedGraphOpt.getOrElse(file.toURI.toString), null)
       scribe.info(stats.toString)
