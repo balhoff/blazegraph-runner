@@ -217,6 +217,7 @@ object Reason extends Command(description = "Materialize inferences") with Commo
     private val whelk = Reasoner.assert(tbox)
     private val tboxClassAssertions = whelk.classAssertions
     private val tboxRoleAssertions = whelk.roleAssertions
+    private val tboxDirectTypes = whelk.individualsDirectTypes
     //TODO this should possibly be part of the whelk API
     //ObjectProperty declarations are needed for correct parsing of OWL properties from RDF
     private val allRoles = tbox.flatMap(_.signature).collect { case role: Role => role }
@@ -238,9 +239,11 @@ object Reason extends Command(description = "Materialize inferences") with Commo
             .filterNot(_.concept == BuiltIn.Top)
           val directClassAssertions = if (assertDirectTypes) {
             for {
-              (Individual(ind), types) <- updated.individualsDirectTypes
+              (whelkInd @ Individual(ind), types) <- updated.individualsDirectTypes
+              knownDirectTypes = tboxDirectTypes.getOrElse(whelkInd, Set.empty)
               c @ AtomicConcept(typ) <- types
               if c != BuiltIn.Top
+              if !knownDirectTypes(c)
             } yield factory.createStatement(factory.createURI(ind), DirectType, factory.createURI(typ))
           } else Set.empty
           val newRoleAssertions = updated.roleAssertions -- assertedRoleAssertions -- tboxRoleAssertions
