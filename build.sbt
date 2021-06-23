@@ -29,7 +29,7 @@ libraryDependencies ++= {
     "com.typesafe.akka"           %% "akka-stream"            % "2.6.1",
     "org.geneontology"            %% "arachne"                % "1.2.1",
     "org.geneontology"            %% "whelk-owlapi"           % "1.1.1",
-    "com.outr"                    %% "scribe-slf4j"           % "2.7.10",
+    "com.outr"                    %% "scribe-slf4j"           % "3.5.5",
     "org.apache.jena"             %  "apache-jena-libs"       % "3.13.1" pomOnly()
   )
 }
