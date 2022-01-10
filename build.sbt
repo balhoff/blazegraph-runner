@@ -29,8 +29,8 @@ libraryDependencies ++= {
     "com.typesafe.akka"           %% "akka-stream"            % "2.6.18",
     "org.geneontology"            %% "arachne"                % "1.2.1",
     "org.geneontology"            %% "whelk-owlapi"           % "1.1.1",
-    "com.outr"                    %% "scribe-slf4j"           % "3.5.5",
-    "org.apache.jena"             %  "apache-jena-libs"       % "4.3.2" pomOnly(),
+    "com.outr"                    %% "scribe-slf4j"           % "3.6.8",
+    "org.apache.jena"             %  "apache-jena-libs"       % "3.17.0" pomOnly(),
     // These are required for certain blazegraph parsers on Java 11
     "com.sun.xml.bind"            % "jaxb-core"               % "2.3.0.1",
     "javax.xml.bind"              % "jaxb-api"                % "2.3.1",
