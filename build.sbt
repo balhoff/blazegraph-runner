@@ -32,7 +32,7 @@ libraryDependencies ++= {
     "com.outr"                    %% "scribe-slf4j"           % "3.5.5",
     "org.apache.jena"             %  "apache-jena-libs"       % "3.13.1" pomOnly(),
     // These are required for certain blazegraph parsers on Java 11
-    "com.sun.xml.bind"            % "jaxb-core"               % "2.3.0.1",
+    "com.sun.xml.bind"            % "jaxb-core"               % "3.0.2",
     "javax.xml.bind"              % "jaxb-api"                % "2.3.1",
     "com.sun.xml.bind"            % "jaxb-impl"               % "2.3.1"
   )
