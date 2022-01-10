@@ -10,7 +10,7 @@ licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Cla
 
 homepage := Some(url("https://github.com/balhoff/blazegraph-runner"))
 
-scalaVersion := "2.13.3"
+scalaVersion := "2.13.7"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
@@ -26,15 +26,15 @@ libraryDependencies ++= {
     "net.sourceforge.owlapi"      %  "owlapi-distribution"    % "4.5.16",
     "org.backuity.clist"          %% "clist-core"             % "3.5.1",
     "org.backuity.clist"          %% "clist-macros"           % "3.5.1" % "provided",
-    "com.typesafe.akka"           %% "akka-stream"            % "2.6.1",
+    "com.typesafe.akka"           %% "akka-stream"            % "2.6.18",
     "org.geneontology"            %% "arachne"                % "1.2.1",
     "org.geneontology"            %% "whelk-owlapi"           % "1.1.1",
-    "com.outr"                    %% "scribe-slf4j"           % "3.6.8",
-    "org.apache.jena"             %  "apache-jena-libs"       % "3.13.1" pomOnly(),
+    "com.outr"                    %% "scribe-slf4j"           % "3.5.5",
+    "org.apache.jena"             %  "apache-jena-libs"       % "3.17.0" pomOnly(),
     // These are required for certain blazegraph parsers on Java 11
     "com.sun.xml.bind"            % "jaxb-core"               % "2.3.0.1",
     "javax.xml.bind"              % "jaxb-api"                % "2.3.1",
-    "com.sun.xml.bind"            % "jaxb-impl"               % "2.3.1"
+    "com.sun.xml.bind"            % "jaxb-impl"               % "2.3.5"
   )
 }
 
