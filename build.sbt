@@ -26,7 +26,7 @@ libraryDependencies ++= {
     "net.sourceforge.owlapi"      %  "owlapi-distribution"    % "4.5.16",
     "org.backuity.clist"          %% "clist-core"             % "3.5.1",
     "org.backuity.clist"          %% "clist-macros"           % "3.5.1" % "provided",
-    "com.typesafe.akka"           %% "akka-stream"            % "2.6.18",
+    "com.typesafe.akka"           %% "akka-stream"            % "2.6.19",
     "org.geneontology"            %% "arachne"                % "1.2.1",
     "org.geneontology"            %% "whelk-owlapi"           % "1.1.1",
     "com.outr"                    %% "scribe-slf4j"           % "3.6.8",
