@@ -4,13 +4,13 @@ organization := "org.renci"
 
 name := "blazegraph-runner"
 
-version := "1.6.5"
+version := "1.7"
 
 licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Clause"))
 
 homepage := Some(url("https://github.com/balhoff/blazegraph-runner"))
 
-scalaVersion := "2.13.7"
+scalaVersion := "2.13.8"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
@@ -28,8 +28,8 @@ libraryDependencies ++= {
     "org.backuity.clist"          %% "clist-macros"           % "3.5.1" % "provided",
     "com.typesafe.akka"           %% "akka-stream"            % "2.6.18",
     "org.geneontology"            %% "arachne"                % "1.2.1",
-    "org.geneontology"            %% "whelk-owlapi"           % "1.1.1",
-    "com.outr"                    %% "scribe-slf4j"           % "3.6.8",
+    "org.geneontology"            %% "whelk-owlapi"           % "1.1.2",
+    "com.outr"                    %% "scribe-slf4j"           % "3.6.10",
     "org.apache.jena"             %  "apache-jena-libs"       % "3.17.0" pomOnly(),
     // These are required for certain blazegraph parsers on Java 11
     "com.sun.xml.bind"            % "jaxb-core"               % "2.3.0.1",
