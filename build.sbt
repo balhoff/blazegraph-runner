@@ -23,7 +23,7 @@ fork in Test := true
 libraryDependencies ++= {
   Seq(
     "com.blazegraph"              %  "bigdata-core"           % "2.1.4" exclude("org.slf4j", "slf4j-log4j12"),
-    "net.sourceforge.owlapi"      %  "owlapi-distribution"    % "4.5.16",
+    "net.sourceforge.owlapi"      %  "owlapi-distribution"    % "4.5.25",
     "org.backuity.clist"          %% "clist-core"             % "3.5.1",
     "org.backuity.clist"          %% "clist-macros"           % "3.5.1" % "provided",
     "com.typesafe.akka"           %% "akka-stream"            % "2.6.18",
@@ -39,4 +39,4 @@ libraryDependencies ++= {
 }
 
 // Later OWL API versions are not compatible with Blazegraph's Sesame dependency
-dependencyOverrides += "net.sourceforge.owlapi" % "owlapi-distribution" % "4.5.16"
+dependencyOverrides += "net.sourceforge.owlapi" % "owlapi-distribution" % "4.5.25"
