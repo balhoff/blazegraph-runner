@@ -30,7 +30,7 @@ libraryDependencies ++= {
     "org.geneontology"            %% "arachne"                % "1.3",
     "org.geneontology"            %% "whelk-owlapi"           % "1.1.2",
     "com.outr"                    %% "scribe-slf4j"           % "3.11.3",
-    "org.apache.jena"             %  "apache-jena-libs"       % "3.17.0" pomOnly(),
+    "org.apache.jena"             %  "apache-jena-libs"       % "4.8.0" pomOnly(),
     // These are required for certain blazegraph parsers on Java 11
     "com.sun.xml.bind"            % "jaxb-core"               % "2.3.0.1",
     "javax.xml.bind"              % "jaxb-api"                % "2.3.1",
