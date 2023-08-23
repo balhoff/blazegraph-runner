@@ -64,6 +64,8 @@ be recursively searched for data files.
 blazegraph-runner load --journal=blazegraph.jnl --graph="http://example.org/mydata" --informat=rdfxml mydata1.rdf mydata2.rdf
 ```
 
+When loading multiple files (or a folder with files), by default each file is loaded under its own graph, currently named using the file's path. (This can be exploited in a SPARQL query, for example to distinguish between triples coming from different files.)
+
 If your data files are OWL ontologies, `blazegraph-runner` can efficiently search within each file to find the ontology IRI 
 if you want to use it as the target named graph:
 
