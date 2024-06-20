@@ -35,13 +35,14 @@ object ArachneBridge {
     case BlankNode(id)                                                                               => factory.createBNode(id)
     case org.geneontology.rules.engine.Literal(value, _, Some(lang))                                 => factory.createLiteral(value, lang)
     case org.geneontology.rules.engine.Literal(value, uri @ org.geneontology.rules.engine.URI(_), _) => factory.createLiteral(value, uriFromArachne(factory, uri))
+    case org.geneontology.rules.engine.Literal(value, _, _) => factory.createLiteral(value)
   }
 
   def valueToArachne(value: Value): ConcreteNode = value match {
     case bnode: BNode     => BlankNode(bnode.getID)
     case uri: URI         => uriToArachne(uri)
     case literal: Literal =>
-      val datatype = if (literal.getDatatype == null) org.geneontology.rules.engine.URI("http://www.w3.org/2001/XMLSchema#string") else uriToArachne(literal.getDatatype)
+      val datatype = if (literal.getDatatype == null) org.geneontology.rules.engine.URI("http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral") else uriToArachne(literal.getDatatype)
       org.geneontology.rules.engine.Literal(literal.stringValue(), datatype, Option(literal.getLanguage))
   }
 
